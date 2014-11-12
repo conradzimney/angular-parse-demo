@@ -5,14 +5,8 @@
 
 "use strict";
 
-//this is the base URL for all task objects managed by your application
-//requesting this with a GET will get all tasks objects
-//sending a POST to this will insert a new task object
-//sending a PUT to this URL + '/' + task.objectId will update an existing task
-//sending a DELETE to this URL + '/' + task.objectId will delete an existing task
-var tasksUrl = 'https://api.parse.com/1/classes/tasks';
 
-angular.module('ToDoApp', [])
+angular.module('ToDoApp', ['ui.bootstrap'])
     .config(function($httpProvider) {
         //Parse required two extra headers sent with every HTTP request: X-Parse-Application-Id, X-Parse-REST-API-Key
         //the first needs to be set to your application's ID value
@@ -24,29 +18,47 @@ angular.module('ToDoApp', [])
         $httpProvider.defaults.headers.common['X-Parse-REST-API-Key'] = 'MKSlzG5ihsO1Cd1pc5xD4GAVmdFy8KpO5Yk7Xtdw';
     })
     .controller('TasksController', function($scope, $http) {
+        //this is the base URL for all task objects managed by your application
+        //requesting this with a GET will get all tasks objects
+        //sending a POST to this will insert a new task object
+        //sending a PUT to this URL + '/' + task.objectId will update an existing task
+        //sending a DELETE to this URL + '/' + task.objectId will delete an existing task
+        var tasksUrl = 'https://api.parse.com/1/classes/tasks';
+
         $scope.refreshTasks = function() {
             $scope.loading = true;
             $http.get(tasksUrl + '?where={"done":false}')
                 .success(function(data) {
+                    // when returning a list of data, Parse will always return an object
+                    // with one property call 'results', which will contain an array
+                    // containing all of the data objects
                     $scope.tasks = data.results;
                 })
                 .error(function(err) {
                     $scope.errorMessage = err;
+                    // notify user in some way
                 })
                 .finally(function() {
                    $scope.loading = false;
                 });
-        };
+        }; // $scope.refreshTasks()
 
+        // call refreshTasks() to get the initial set of tasks on page load
         $scope.refreshTasks();
 
+        // initialize a new task object on the scope for the new task form
         $scope.newTask = {done: false};
 
+        // function to add a new task to the list
         $scope.addTask = function() {
 
             $http.post(tasksUrl, $scope.newTask)
                 .success(function(responseData) {
+                    // Parse will return the new objectId in the response data
+                    // copy that to the task we just inserted
                     $scope.newTask.objectId = responseData.objectId;
+
+                    // and add that task to our task list
                     $scope.tasks.push($scope.newTask);
                     $scope.newTask = {done: false};
                 })
@@ -64,7 +76,26 @@ angular.module('ToDoApp', [])
                 .error(function(err) {
                     $scope.errorMessage = err;
                 });
-        };
+        }; //updateTasks
+
+        $scope.incrementVotes = function(task, amount) {
+            $http.put(tasksUrl + '/' + task.objectId, {
+                votes: {
+                    __op: 'Increment',
+                    amount: amount
+                }
+            })
+                .success(function(responseData) {
+                    console.log(responseData);
+                    task.votes = responseData.votes;
+                })
+                .error(function() {
+                    console.log(err);
+                })
+                .finally(function() {
+                    $scope.updating = false;
+                })
+        }; //incrementVotes()
 
     });
 
